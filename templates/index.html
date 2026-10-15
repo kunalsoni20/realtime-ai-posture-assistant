@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time AI Workout & Posture Correction Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="dark-theme">
+    <div class="app-container">
+        <header class="app-header">
+            <div class="logo-group">
+                <span class="logo-icon">⚡</span>
+                <h1>Real-Time AI Workout & Posture Correction Assistant</h1>
+            </div>
+            <nav class="header-nav">
+                <a href="/" class="nav-link active">Live Tracker</a>
+                <a href="/analytics" class="nav-link">Analytics</a>
+            </nav>
+        </header>
+
+        <main class="dashboard-grid">
+            <section class="video-panel">
+                <div class="video-wrapper">
+                    <img id="videoFeed" src="{{ url_for('video_feed') }}" alt="Live AI Pose Stream" />
+                </div>
+            </section>
+
+            <aside class="controls-panel">
+                <div class="card exercise-selector">
+                    <h3>Select Exercise</h3>
+                    <div class="button-group">
+                        <button class="btn btn-exercise active" data-exercise="bicep_curls">Bicep Curls</button>
+                        <button class="btn btn-exercise" data-exercise="squats">Squats</button>
+                        <button class="btn btn-exercise" data-exercise="pushups">Push-ups</button>
+                    </div>
+                </div>
+
+                <div class="card metrics-card">
+                    <h3>Live Metrics</h3>
+                    <div class="metric-row">
+                        <span>Reps Completed:</span>
+                        <strong id="repCounter">0</strong>
+                    </div>
+                    <div class="metric-row">
+                        <span>Stage:</span>
+                        <strong id="stageIndicator">--</strong>
+                    </div>
+                    <div class="metric-row">
+                        <span>Feedback:</span>
+                        <span id="postureFeedback" class="badge">READY</span>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
