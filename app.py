@@ -2,17 +2,28 @@ import cv2
 import time
 from flask import Flask, render_template, Response, request, jsonify
 from pose_detector import PoseDetector
+from exercises import BicepCurlDetector, SquatDetector, PushupDetector
 
 app = Flask(__name__)
 
-# Global states
+# Exercise detector instances
+exercise_detectors = {
+    "bicep_curls": BicepCurlDetector(),
+    "squats": SquatDetector(),
+    "pushups": PushupDetector()
+}
+
 current_exercise_name = "bicep_curls"
+active_detector = exercise_detectors[current_exercise_name]
+
 current_stats = {
-    "exercise": "bicep_curls",
+    "exercise": "Bicep Curls",
+    "exercise_key": "bicep_curls",
     "reps": 0,
     "stage": "up",
     "feedback": "READY",
     "angle": 0.0,
+    "accuracy": 100.0,
     "fps": 0.0
 }
 
@@ -20,8 +31,8 @@ pose_detector = PoseDetector()
 
 
 def generate_frames():
-    """Generates MJPEG video stream with MediaPipe pose landmark estimation."""
-    global current_stats
+    """Generates MJPEG video stream with real-time pose estimation and exercise processing."""
+    global current_stats, active_detector
     cap = cv2.VideoCapture(0)
     
     prev_time = time.time()
@@ -29,16 +40,20 @@ def generate_frames():
     while True:
         success, frame = cap.read()
         if not success:
-            # Fallback frame if no webcam is detected
-            frame = cv2.imread("static/img/fallback_banner.jpg")
-            if frame is None:
-                import numpy as np
-                frame = np.zeros((480, 640, 3), dtype=np.uint8)
-                cv2.putText(frame, "Waiting for Camera Feed...", (120, 240),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 200), 2)
+            import numpy as np
+            frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            cv2.putText(frame, "Waiting for Camera Feed...", (120, 240),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 200), 2)
             time.sleep(0.04)
         else:
             frame, landmarks = pose_detector.find_pose(frame, draw=True)
+            if landmarks:
+                metrics = active_detector.process(landmarks, frame.shape)
+                current_stats["reps"] = metrics["reps"]
+                current_stats["stage"] = metrics["stage"]
+                current_stats["feedback"] = metrics["feedback"]
+                current_stats["angle"] = metrics["angle"]
+                current_stats["accuracy"] = metrics["accuracy"]
 
         # FPS calculation
         curr_time = time.time()
@@ -71,15 +86,25 @@ def video_feed():
 
 @app.route('/api/select_exercise', methods=['POST'])
 def select_exercise():
-    """Select active exercise."""
-    global current_exercise_name
+    """Switch active exercise and reset metrics."""
+    global current_exercise_name, active_detector, current_stats
     data = request.get_json() or {}
-    exercise = data.get('exercise', 'bicep_curls')
-    current_exercise_name = exercise
-    current_stats["exercise"] = exercise
-    current_stats["reps"] = 0
-    current_stats["feedback"] = "READY"
-    return jsonify({"status": "success", "exercise": exercise})
+    exercise_key = data.get('exercise', 'bicep_curls')
+
+    if exercise_key in exercise_detectors:
+        current_exercise_name = exercise_key
+        active_detector = exercise_detectors[exercise_key]
+        active_detector.reset()
+
+        current_stats["exercise"] = active_detector.name
+        current_stats["exercise_key"] = exercise_key
+        current_stats["reps"] = 0
+        current_stats["stage"] = "up"
+        current_stats["feedback"] = "READY"
+        current_stats["angle"] = 0.0
+        current_stats["accuracy"] = 100.0
+
+    return jsonify({"status": "success", "exercise": current_stats["exercise"]})
 
 
 @app.route('/api/stats')
