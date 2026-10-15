@@ -1,15 +1,20 @@
-import cv2
-import time
 import os
+import time
+import cv2
 from flask import Flask, render_template, Response, request, jsonify, send_file
+from werkzeug.utils import secure_filename
 from pose_detector import PoseDetector
 from exercises import BicepCurlDetector, SquatDetector, PushupDetector
 from hud_overlay import HUDOverlay
+from video_source import VideoSourceManager
 import session_logger
 
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Initialize exercise detectors
+# Exercise detectors dictionary
 exercise_detectors = {
     "bicep_curls": BicepCurlDetector(),
     "squats": SquatDetector(),
@@ -19,7 +24,11 @@ exercise_detectors = {
 current_exercise_name = "bicep_curls"
 active_detector = exercise_detectors[current_exercise_name]
 
-# Active session tracking
+# Global pose detector & smart video source manager
+pose_detector = PoseDetector()
+video_source_manager = VideoSourceManager(pose_detector, default_mode="webcam")
+
+# Workout session timing state
 session_state = {
     "is_active": False,
     "start_time": time.time(),
@@ -35,50 +44,44 @@ current_stats = {
     "angle": 0.0,
     "accuracy": 100.0,
     "fps": 0.0,
-    "is_active": False
+    "is_active": False,
+    "source_mode": video_source_manager.mode
 }
 
-pose_detector = PoseDetector()
 session_logger.init_logger()
 
 
 def generate_frames():
-    """Generates MJPEG video stream with MediaPipe pose tracking and 25+ FPS HUD overlay."""
-    global current_stats, active_detector, session_state
-    cap = cv2.VideoCapture(0)
+    """Generates real-time MJPEG stream with MediaPipe pose processing and 25+ FPS HUD overlay."""
+    global current_stats, active_detector, session_state, video_source_manager
     
     prev_time = time.time()
-    fps_smooth = 28.0
+    fps_smooth = 28.5
 
     while True:
-        success, frame = cap.read()
-        if not success:
-            import numpy as np
-            frame = np.zeros((480, 640, 3), dtype=np.uint8)
-            cv2.putText(frame, "Waiting for Camera Feed...", (120, 240),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 200), 2)
-            time.sleep(0.04)
-        else:
-            frame, landmarks = pose_detector.find_pose(frame, draw=True)
-            if landmarks:
-                metrics = active_detector.process(landmarks, frame.shape)
-                current_stats["reps"] = metrics["reps"]
-                current_stats["stage"] = metrics["stage"]
-                current_stats["feedback"] = metrics["feedback"]
-                current_stats["angle"] = metrics["angle"]
-                current_stats["accuracy"] = metrics["accuracy"]
+        # Retrieve frame from active video source (Webcam, Upload, or Cloud Demo Mode)
+        frame, landmarks = video_source_manager.get_frame(current_exercise_name)
 
-        # Real-time FPS calculation
+        if landmarks is not None:
+            metrics = active_detector.process(landmarks, frame.shape)
+            current_stats["reps"] = metrics["reps"]
+            current_stats["stage"] = metrics["stage"]
+            current_stats["feedback"] = metrics["feedback"]
+            current_stats["angle"] = metrics["angle"]
+            current_stats["accuracy"] = metrics["accuracy"]
+
+        # Real-time FPS calculation & EMA smoothing
         curr_time = time.time()
         instant_fps = 1.0 / (curr_time - prev_time) if (curr_time - prev_time) > 0 else 30.0
         prev_time = curr_time
-        fps_smooth = 0.85 * fps_smooth + 0.15 * instant_fps
+        fps_smooth = 0.88 * fps_smooth + 0.12 * instant_fps
         current_stats["fps"] = round(fps_smooth, 1)
+        current_stats["source_mode"] = video_source_manager.mode
 
         if session_state["is_active"]:
             session_state["fps_history"].append(fps_smooth)
 
-        # Render 25+ FPS HUD Overlay on frame
+        # Draw real-time 25+ FPS HUD Overlay
         frame = HUDOverlay.render(
             frame=frame,
             exercise_name=active_detector.name,
@@ -101,8 +104,8 @@ def generate_frames():
 
 @app.route('/')
 def index():
-    """Render main real-time posture assistant dashboard."""
-    return render_template('index.html')
+    """Render main dark-themed AI Workout Assistant dashboard."""
+    return render_template('index.html', source_mode=video_source_manager.mode)
 
 
 @app.route('/analytics')
@@ -115,14 +118,14 @@ def analytics():
 
 @app.route('/video_feed')
 def video_feed():
-    """Video streaming route for MJPEG feed."""
+    """Video streaming route for OpenCV MJPEG feed."""
     return Response(generate_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 @app.route('/api/select_exercise', methods=['POST'])
 def select_exercise():
-    """Switch active exercise and reset counters."""
+    """Switch active exercise (Bicep Curls, Squats, Push-ups)."""
     global current_exercise_name, active_detector, current_stats
     data = request.get_json() or {}
     exercise_key = data.get('exercise', 'bicep_curls')
@@ -140,12 +143,45 @@ def select_exercise():
         current_stats["angle"] = 0.0
         current_stats["accuracy"] = 100.0
 
-    return jsonify({"status": "success", "exercise": current_stats["exercise"]})
+    return jsonify({
+        "status": "success",
+        "exercise": current_stats["exercise"],
+        "exercise_key": current_exercise_name
+    })
+
+
+@app.route('/api/set_source', methods=['POST'])
+def set_source():
+    """Switch video source between 'webcam', 'demo', and 'upload'."""
+    data = request.get_json() or {}
+    mode = data.get('mode', 'webcam')
+    actual_mode = video_source_manager.set_source(mode)
+    current_stats["source_mode"] = actual_mode
+    return jsonify({"status": "success", "mode": actual_mode})
+
+
+@app.route('/api/upload_video', methods=['POST'])
+def upload_video():
+    """Handle custom video upload for pose analysis."""
+    if 'video' not in request.files:
+        return jsonify({"status": "error", "message": "No file uploaded"}), 400
+        
+    file = request.files['video']
+    if file.filename == '':
+        return jsonify({"status": "error", "message": "Empty filename"}), 400
+
+    filename = secure_filename(file.filename)
+    save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(save_path)
+
+    actual_mode = video_source_manager.set_source("upload", upload_path=save_path)
+    current_stats["source_mode"] = actual_mode
+    return jsonify({"status": "success", "mode": actual_mode, "filename": filename})
 
 
 @app.route('/api/session/start', methods=['POST'])
 def start_session():
-    """Start timing and recording a new workout session."""
+    """Start recording a live workout session."""
     global session_state
     session_state["is_active"] = True
     session_state["start_time"] = time.time()
@@ -157,7 +193,7 @@ def start_session():
 
 @app.route('/api/session/end', methods=['POST'])
 def end_session():
-    """End current workout session and persist record via Pandas."""
+    """End workout session and log summary to Pandas workout_logs.csv."""
     global session_state
     duration = int(time.time() - session_state["start_time"])
     session_state["is_active"] = False
@@ -180,7 +216,7 @@ def end_session():
 
 @app.route('/api/session/reset', methods=['POST'])
 def reset_session():
-    """Reset current counter."""
+    """Reset the current rep counter and metrics."""
     active_detector.reset()
     current_stats["reps"] = 0
     current_stats["stage"] = "up"
@@ -192,13 +228,13 @@ def reset_session():
 
 @app.route('/api/stats')
 def get_stats():
-    """Return live metrics in JSON for frontend HUD."""
+    """Return live JSON metrics for real-time frontend UI updates."""
     return jsonify(current_stats)
 
 
 @app.route('/api/export-logs')
 def export_logs():
-    """Export workout session logs as CSV attachment."""
+    """Download workout session history as a CSV file."""
     return send_file(
         session_logger.CSV_FILE_PATH,
         mimetype='text/csv',
@@ -208,4 +244,6 @@ def export_logs():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    port = int(os.environ.get('PORT', 5050))
+    print(f" * AI Workout Assistant running on http://127.0.0.1:{port}")
+    app.run(host='0.0.0.0', port=port, debug=False)

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-Time AI Workout & Posture Correction Assistant</title>
+    <title>Real-Time AI Workout & Posture Correction Assistant | By Kunal Soni</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,52 +11,212 @@
 </head>
 <body class="dark-theme">
     <div class="app-container">
+        <!-- Main Application Header -->
         <header class="app-header">
             <div class="logo-group">
-                <span class="logo-icon">⚡</span>
-                <h1>Real-Time AI Workout & Posture Correction Assistant</h1>
+                <div class="logo-badge">⚡ AI</div>
+                <div>
+                    <h1>Real-Time AI Workout & Posture Correction Assistant</h1>
+                    <p class="author-tag">Computer Vision & Biomechanics Pipeline &bull; By <span class="highlight">Kunal Soni</span></p>
+                </div>
             </div>
             <nav class="header-nav">
                 <a href="/" class="nav-link active">Live Tracker</a>
-                <a href="/analytics" class="nav-link">Analytics</a>
+                <a href="/analytics" class="nav-link">Analytics Dashboard</a>
+                <a href="/api/export-logs" class="btn-download-csv" download title="Download CSV Log">
+                    📥 CSV
+                </a>
             </nav>
         </header>
 
+        <!-- Exercise & Source Navigation Controls -->
+        <div class="top-controls-bar">
+            <!-- Exercise Selector -->
+            <div class="control-segment">
+                <span class="control-label">Target Exercise:</span>
+                <div class="button-group exercise-buttons">
+                    <button class="btn btn-exercise active" data-exercise="bicep_curls">
+                        <span class="btn-icon">💪</span> Bicep Curls
+                    </button>
+                    <button class="btn btn-exercise" data-exercise="squats">
+                        <span class="btn-icon">🦵</span> Squats
+                    </button>
+                    <button class="btn btn-exercise" data-exercise="pushups">
+                        <span class="btn-icon">🤸</span> Push-ups
+                    </button>
+                </div>
+            </div>
+
+            <!-- Video Source Selector -->
+            <div class="control-segment">
+                <span class="control-label">Video Source:</span>
+                <div class="button-group source-buttons">
+                    <button class="btn btn-source active" data-source="webcam" id="btnSourceWebcam">
+                        📹 Live Camera
+                    </button>
+                    <button class="btn btn-source" data-source="demo" id="btnSourceDemo">
+                        🚀 Cloud Demo Mode
+                    </button>
+                    <label class="btn btn-source btn-upload-label" for="videoUploadInput">
+                        📁 Upload Video
+                    </label>
+                    <input type="file" id="videoUploadInput" accept="video/mp4,video/avi,video/mov" style="display: none;">
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard Grid -->
         <main class="dashboard-grid">
-            <section class="video-panel">
-                <div class="video-wrapper">
-                    <img id="videoFeed" src="{{ url_for('video_feed') }}" alt="Live AI Pose Stream" />
+            <!-- Left Column: Video Feed & Stream Controls -->
+            <section class="video-section">
+                <div class="video-panel">
+                    <div class="video-wrapper">
+                        <!-- Floating Stream Telemetry Badges -->
+                        <div class="floating-badge badge-top-left">
+                            <span class="pulse-dot"></span>
+                            <span id="activeExerciseBadge">Bicep Curls</span>
+                        </div>
+                        <div class="floating-badge badge-top-right">
+                            <span id="fpsDisplay">FPS: 28.5</span>
+                        </div>
+                        <div class="floating-badge badge-bottom-left">
+                            <span id="sourceDisplayBadge">SOURCE: WEBCAM</span>
+                        </div>
+
+                        <!-- Live OpenCV Video Feed -->
+                        <img id="videoFeed" src="{{ url_for('video_feed') }}" alt="AI Vision MJPEG Stream">
+                    </div>
+
+                    <!-- Session Action Bar -->
+                    <div class="session-action-bar">
+                        <div class="action-buttons">
+                            <button id="btnStartSession" class="btn btn-action btn-start">
+                                ▶ Start Workout
+                            </button>
+                            <button id="btnEndSession" class="btn btn-action btn-end" disabled>
+                                ⏹ Finish & Log Session
+                            </button>
+                            <button id="btnResetReps" class="btn btn-action btn-secondary">
+                                ↺ Reset Counter
+                            </button>
+                        </div>
+                        <div class="session-timer-box">
+                            <span class="timer-label">Session Time</span>
+                            <span id="sessionTimer" class="timer-value">00:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exercise Biomechanics Guide -->
+                <div class="card biomechanics-card">
+                    <div class="card-header">
+                        <h3>📐 Biomechanical Angle & Posture Tracking Spec</h3>
+                    </div>
+                    <div class="spec-grid" id="biomechanicsGuide">
+                        <div class="spec-item">
+                            <span class="spec-label">Joints Tracked:</span>
+                            <strong id="specJoints" class="text-cyan">Shoulder, Elbow, Wrist</strong>
+                        </div>
+                        <div class="spec-item">
+                            <span class="spec-label">Mathematical Method:</span>
+                            <strong class="text-emerald">NumPy arctan2 vector trigonometry</strong>
+                        </div>
+                        <div class="spec-item">
+                            <span class="spec-label">Rep Stage Range:</span>
+                            <strong id="specRange">Down (&gt;155°) &rarr; Up (&lt;45°)</strong>
+                        </div>
+                        <div class="spec-item">
+                            <span class="spec-label">Monitored Flaws:</span>
+                            <strong id="specFlaws" class="text-danger">Elbow flare, swinging, incomplete ROM</strong>
+                        </div>
+                    </div>
                 </div>
             </section>
 
-            <aside class="controls-panel">
-                <div class="card exercise-selector">
-                    <h3>Select Exercise</h3>
-                    <div class="button-group">
-                        <button class="btn btn-exercise active" data-exercise="bicep_curls">Bicep Curls</button>
-                        <button class="btn btn-exercise" data-exercise="squats">Squats</button>
-                        <button class="btn btn-exercise" data-exercise="pushups">Push-ups</button>
+            <!-- Right Column: Real-Time AI Telemetry Cards -->
+            <aside class="telemetry-panel">
+                <!-- Repetition Counter Card -->
+                <div class="card stat-card rep-card">
+                    <div class="stat-header">
+                        <h3>Repetitions</h3>
+                        <span id="stageBadge" class="stage-badge">UP</span>
+                    </div>
+                    <div class="stat-body rep-body">
+                        <div class="rep-number-container">
+                            <span id="repCounter" class="rep-number">0</span>
+                            <span class="rep-unit">COMPLETED</span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="card metrics-card">
-                    <h3>Live Metrics</h3>
-                    <div class="metric-row">
-                        <span>Reps Completed:</span>
-                        <strong id="repCounter">0</strong>
+                <!-- Posture Feedback & Form Diagnostics Card -->
+                <div class="card stat-card feedback-card">
+                    <div class="stat-header">
+                        <h3>Form & Posture Analysis</h3>
+                        <span id="accuracyValue" class="accuracy-percent">100%</span>
                     </div>
-                    <div class="metric-row">
-                        <span>Stage:</span>
-                        <strong id="stageIndicator">--</strong>
+                    <div class="stat-body">
+                        <div id="postureFeedbackBox" class="feedback-box status-good">
+                            <span class="feedback-icon" id="feedbackIcon">✓</span>
+                            <span id="postureFeedbackText" class="feedback-text">GOOD FORM</span>
+                        </div>
+                        
+                        <div class="accuracy-bar-wrapper">
+                            <div class="accuracy-bar-label">
+                                <span>Form Precision Score</span>
+                            </div>
+                            <div class="progress-track">
+                                <div id="accuracyProgressBar" class="progress-fill" style="width: 100%;"></div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="metric-row">
-                        <span>Feedback:</span>
-                        <span id="postureFeedback" class="badge">READY</span>
+                </div>
+
+                <!-- Joint Angle Card -->
+                <div class="card stat-card angle-card">
+                    <div class="stat-header">
+                        <h3 id="angleJointLabel">Elbow Joint Angle</h3>
+                        <span id="angleText" class="angle-digits font-mono">0.0°</span>
+                    </div>
+                    <div class="stat-body">
+                        <div class="angle-gauge-track">
+                            <div id="angleGaugeFill" class="angle-gauge-fill" style="width: 0%;"></div>
+                        </div>
+                        <div class="angle-scale">
+                            <span>0°</span>
+                            <span>45°</span>
+                            <span>90°</span>
+                            <span>135°</span>
+                            <span>180°</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Link & Summary Card -->
+                <div class="card session-summary-card">
+                    <div class="summary-header">
+                        <h3>Session Analytics</h3>
+                        <a href="/analytics" class="link-analytics">View Full History &rarr;</a>
+                    </div>
+                    <p class="summary-desc">
+                        Workouts are automatically logged into <span class="font-mono text-cyan">workout_logs.csv</span> using Pandas with full posture breakdown.
+                    </p>
+                    <div class="quick-links">
+                        <a href="/analytics" class="btn btn-secondary btn-block">
+                            📊 Analytics Dashboard
+                        </a>
+                        <a href="/api/export-logs" class="btn btn-outline btn-block" download>
+                            📥 Export CSV Report
+                        </a>
                     </div>
                 </div>
             </aside>
         </main>
     </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastNotification" class="toast">Session saved successfully!</div>
+
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
