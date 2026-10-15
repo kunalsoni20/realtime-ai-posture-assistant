@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Analytics | Real-Time AI Workout & Posture Correction Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="dark-theme">
+    <div class="app-container">
+        <header class="app-header">
+            <div class="logo-group">
+                <span class="logo-icon">⚡</span>
+                <h1>Real-Time AI Workout & Posture Correction Assistant</h1>
+            </div>
+            <nav class="header-nav">
+                <a href="/" class="nav-link">Live Tracker</a>
+                <a href="/analytics" class="nav-link active">Analytics</a>
+            </nav>
+        </header>
+
+        <section class="analytics-hero">
+            <div class="hero-text">
+                <h2>Workout Session Analytics</h2>
+                <p>Pandas-powered post-workout metrics, form precision scores, and telemetry history.</p>
+            </div>
+            <div class="hero-actions">
+                <a href="/api/export-logs" class="btn btn-primary" download>
+                    📥 Download CSV Report
+                </a>
+            </div>
+        </section>
+
+        <!-- KPI Metric Cards -->
+        <section class="kpi-grid">
+            <div class="card kpi-card">
+                <span class="kpi-label">Total Workouts</span>
+                <span class="kpi-value text-cyan">{{ metrics.total_workouts }}</span>
+                <span class="kpi-subtext">Completed sessions</span>
+            </div>
+            <div class="card kpi-card">
+                <span class="kpi-label">Total Repetitions</span>
+                <span class="kpi-value text-emerald">{{ metrics.total_reps }}</span>
+                <span class="kpi-subtext">Across all exercises</span>
+            </div>
+            <div class="card kpi-card">
+                <span class="kpi-label">Average Form Accuracy</span>
+                <span class="kpi-value text-emerald">{{ metrics.avg_accuracy }}%</span>
+                <span class="kpi-subtext">Computer vision validation</span>
+            </div>
+            <div class="card kpi-card">
+                <span class="kpi-label">Average Processing FPS</span>
+                <span class="kpi-value text-cyan">{{ metrics.avg_fps }}</span>
+                <span class="kpi-subtext">Real-time inference speed</span>
+            </div>
+        </section>
+
+        <!-- Exercise Rep Breakdown -->
+        {% if metrics.exercise_breakdown %}
+        <section class="card breakdown-section">
+            <h3>Repetitions by Exercise</h3>
+            <div class="breakdown-pills">
+                {% for ex, reps in metrics.exercise_breakdown.items() %}
+                <div class="pill-stat">
+                    <span class="pill-name">{{ ex }}</span>
+                    <span class="pill-count">{{ reps }} reps</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Sessions Data Table -->
+        <section class="card table-card">
+            <div class="table-header-group">
+                <h3>Session History Log (workout_logs.csv)</h3>
+                <span class="log-count">{{ sessions|length }} entries</span>
+            </div>
+            <div class="table-responsive">
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Session ID</th>
+                            <th>Timestamp</th>
+                            <th>Exercise</th>
+                            <th>Reps Completed</th>
+                            <th>Form Accuracy</th>
+                            <th>Posture Warnings</th>
+                            <th>Avg FPS</th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if sessions %}
+                            {% for s in sessions %}
+                            <tr>
+                                <td class="font-mono text-cyan">{{ s.session_id }}</td>
+                                <td class="text-muted">{{ s.timestamp }}</td>
+                                <td><strong>{{ s.exercise }}</strong></td>
+                                <td class="font-mono">{{ s.reps_completed }}</td>
+                                <td>
+                                    <span class="badge {% if s.accuracy_score >= 90 %}badge-success{% elif s.accuracy_score >= 75 %}badge-warning{% else %}badge-danger{% endif %}">
+                                        {{ s.accuracy_score }}%
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if s.posture_warnings > 0 %}
+                                        <span class="badge badge-warning">{{ s.posture_warnings }} warnings</span>
+                                    {% else %}
+                                        <span class="badge badge-success">Flawless</span>
+                                    {% endif %}
+                                </td>
+                                <td class="font-mono text-muted">{{ s.avg_fps }}</td>
+                                <td class="text-muted">{{ s.duration_seconds }}s</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">No workout sessions recorded yet. Start a workout to generate logs!</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

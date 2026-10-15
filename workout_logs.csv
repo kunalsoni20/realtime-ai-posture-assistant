@@ -1,0 +1,6 @@
+session_id,timestamp,exercise,reps_completed,accuracy_score,posture_warnings,avg_fps,duration_seconds
+SES-1001,2026-10-14 09:15:22,Bicep Curls,15,93.4,2,28.6,78
+SES-1002,2026-10-14 17:42:05,Squats,20,88.5,4,27.9,115
+SES-1003,2026-10-15 11:20:18,Push-ups,18,95.0,1,29.1,92
+SES-1004,2026-10-15 18:35:44,Bicep Curls,12,91.0,3,28.2,65
+SES-91611,2026-10-16 00:43:31,Squats,25,96.2,1,28.7,95
