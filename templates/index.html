@@ -89,8 +89,8 @@
                         <!-- Direct Browser Webcam Player (Live Camera Mode) -->
                         <div id="webcamContainer" style="display: none; position: relative; width: 100%; height: 100%; background: #000;">
                             <video id="webcamVideo" playsinline autoplay muted style="width: 100%; height: 100%; object-fit: contain; transform: scaleX(-1);"></video>
-                            <img id="processedStreamOverlay" alt="AI Pose Overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none;">
-                            <canvas id="webcamCanvas" width="640" height="480" style="display: none;"></canvas>
+                            <canvas id="webcamOverlayCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; transform: scaleX(-1);"></canvas>
+                            <canvas id="webcamCanvas" width="480" height="360" style="display: none;"></canvas>
                         </div>
                     </div>
 

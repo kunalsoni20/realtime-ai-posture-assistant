@@ -1,3 +1,4 @@
+import time
 import numpy as np
 from .base import BaseExercise
 
@@ -70,13 +71,16 @@ class BicepCurlDetector(BaseExercise):
             is_posture_flawed = True
             warning_msg = "FIX POSTURE: DO NOT SWING TORSO"
 
-        # 3. State Machine & Repetition Counting
+        # 3. State Machine & Repetition Counting with Time Debounce
+        curr_time = time.time()
         if elbow_angle > self.DOWN_THRESHOLD:
             self.stage = "down"
 
         if elbow_angle < self.UP_THRESHOLD and self.stage == "down":
+            if (curr_time - self.last_rep_time) > 1.2:
+                self.reps += 1
+                self.last_rep_time = curr_time
             self.stage = "up"
-            self.reps += 1
 
         # 4. Form Feedback Evaluation
         if is_posture_flawed:

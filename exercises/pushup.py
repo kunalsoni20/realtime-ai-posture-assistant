@@ -1,3 +1,4 @@
+import time
 import numpy as np
 from .base import BaseExercise
 
@@ -76,7 +77,8 @@ class PushupDetector(BaseExercise):
             is_posture_flawed = True
             warning_msg = "FIX POSTURE: HIPS TOO HIGH"
 
-        # 4. State Machine & Repetition Counting
+        # 4. State Machine & Repetition Counting with Debounce
+        curr_time = time.time()
         if elbow_angle < self.ELBOW_FLEXED_ANGLE:
             self.stage = "down"
 
@@ -86,7 +88,9 @@ class PushupDetector(BaseExercise):
         if elbow_angle > self.ELBOW_EXTENDED_ANGLE:
             if self.stage == "down":
                 if self._deepest_elbow_angle <= self.ELBOW_FLEXED_ANGLE + 10.0:
-                    self.reps += 1
+                    if (curr_time - self.last_rep_time) > 1.2:
+                        self.reps += 1
+                        self.last_rep_time = curr_time
                 else:
                     is_posture_flawed = True
                     warning_msg = "FIX POSTURE: LOWER CHEST FULLY"

@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoFeed = document.getElementById('videoFeed');
     const webcamContainer = document.getElementById('webcamContainer');
     const webcamVideo = document.getElementById('webcamVideo');
-    const processedStreamOverlay = document.getElementById('processedStreamOverlay');
+    const webcamOverlayCanvas = document.getElementById('webcamOverlayCanvas');
     const webcamCanvas = document.getElementById('webcamCanvas');
 
     const repCounter = document.getElementById('repCounter');
@@ -66,6 +66,65 @@ document.addEventListener('DOMContentLoaded', () => {
     let isBrowserWebcamActive = false;
     let webcamStream = null;
     let isSendingFrame = false;
+
+    // Skeleton Bone Connections for MediaPipe Pose (Landmark Indices)
+    const POSE_CONNECTIONS = [
+        [11, 12], // shoulders
+        [11, 13], [13, 15], // left arm
+        [12, 14], [14, 16], // right arm
+        [11, 23], [12, 24], // torso sides
+        [23, 24], // hips
+        [23, 25], [25, 27], // left leg
+        [24, 26], [26, 28], // right leg
+        [27, 29], [27, 31], [29, 31], // left foot
+        [28, 30], [28, 32], [30, 32]  // right foot
+    ];
+
+    function drawSkeleton(landmarks) {
+        if (!webcamOverlayCanvas || !webcamVideo) return;
+        const ctx = webcamOverlayCanvas.getContext('2d');
+        const width = webcamVideo.videoWidth || 640;
+        const height = webcamVideo.videoHeight || 480;
+
+        if (webcamOverlayCanvas.width !== width || webcamOverlayCanvas.height !== height) {
+            webcamOverlayCanvas.width = width;
+            webcamOverlayCanvas.height = height;
+        }
+
+        ctx.clearRect(0, 0, width, height);
+        if (!landmarks || landmarks.length === 0) return;
+
+        // Draw neon cyan skeleton connections
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 6;
+
+        for (const [startIdx, endIdx] of POSE_CONNECTIONS) {
+            const p1 = landmarks[startIdx];
+            const p2 = landmarks[endIdx];
+            if (p1 && p2 && p1[2] > 0.4 && p2[2] > 0.4) {
+                ctx.beginPath();
+                ctx.moveTo(p1[0] * width, p1[1] * height);
+                ctx.lineTo(p2[0] * width, p2[1] * height);
+                ctx.stroke();
+            }
+        }
+
+        // Draw neon emerald joint landmarks
+        ctx.fillStyle = '#10b981';
+        ctx.shadowColor = '#10b981';
+        ctx.shadowBlur = 8;
+
+        for (let i = 11; i < landmarks.length; i++) {
+            const pt = landmarks[i];
+            if (pt && pt[2] > 0.4) {
+                ctx.beginPath();
+                ctx.arc(pt[0] * width, pt[1] * height, 4.5, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+    }
 
     // Toast helper
     function showToast(message) {
@@ -135,9 +194,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 await webcamVideo.play();
             }
 
-            // Immediately switch display from static/demo image to active webcam video
+            // Switch display from static/demo MJPEG image to native 60 FPS webcam video
             if (webcamContainer) webcamContainer.style.display = 'block';
-            if (videoFeed) videoFeed.style.display = 'none';
+            if (videoFeed) {
+                videoFeed.style.display = 'none';
+                videoFeed.src = ""; // Cut background MJPEG stream to save bandwidth and prevent ghost reps!
+            }
+
+            // Inform server to mute background demo loops
+            try {
+                await fetch('/api/set_source', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode: 'webcam' })
+                });
+            } catch (e) {}
 
             isBrowserWebcamActive = true;
             if (sourceDisplayBadge) sourceDisplayBadge.textContent = "SOURCE: LIVE WEBCAM";
@@ -156,7 +227,10 @@ document.addEventListener('DOMContentLoaded', () => {
             webcamStream = null;
         }
         if (webcamContainer) webcamContainer.style.display = 'none';
-        if (processedStreamOverlay) processedStreamOverlay.style.display = 'none';
+        if (webcamOverlayCanvas) {
+            const ctx = webcamOverlayCanvas.getContext('2d');
+            ctx.clearRect(0, 0, webcamOverlayCanvas.width, webcamOverlayCanvas.height);
+        }
         if (videoFeed) {
             videoFeed.style.display = 'block';
             videoFeed.src = "/video_feed";
@@ -170,9 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (webcamVideo.videoWidth > 0 && !isSendingFrame) {
             isSendingFrame = true;
             const ctx = webcamCanvas.getContext('2d');
-            webcamCanvas.width = 640;
-            webcamCanvas.height = 480;
-            ctx.drawImage(webcamVideo, 0, 0, 640, 480);
+            webcamCanvas.width = 480;
+            webcamCanvas.height = 360;
+            ctx.drawImage(webcamVideo, 0, 0, 480, 360);
 
             webcamCanvas.toBlob(async (blob) => {
                 if (!blob) {
@@ -188,11 +262,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     if (res.ok) {
                         const data = await res.json();
-                        if (data.image && isBrowserWebcamActive) {
-                            if (processedStreamOverlay) {
-                                processedStreamOverlay.src = data.image;
-                                processedStreamOverlay.style.display = 'block';
-                            }
+                        if (data.landmarks && isBrowserWebcamActive) {
+                            drawSkeleton(data.landmarks);
                         }
                         if (data.metrics) {
                             updateMetricsUI(data.metrics);
@@ -203,13 +274,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 } finally {
                     isSendingFrame = false;
                     if (isBrowserWebcamActive) {
-                        // Rate limit to ~20-25 FPS to keep network lightweight on cloud
+                        // Rate limit to ~20 FPS for silky lightweight cloud responsiveness
                         setTimeout(() => {
                             if (isBrowserWebcamActive) requestAnimationFrame(processWebcamLoop);
-                        }, 40);
+                        }, 50);
                     }
                 }
-            }, 'image/jpeg', 0.70);
+            }, 'image/jpeg', 0.60);
         } else {
             if (isBrowserWebcamActive) {
                 requestAnimationFrame(processWebcamLoop);

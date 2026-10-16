@@ -28,19 +28,9 @@ class VideoSourceManager:
             self.cap = None
 
         if self.mode == self.MODE_WEBCAM:
-            self.cap = cv2.VideoCapture(0)
-            # Test if webcam can actually read a valid frame
-            if not self.cap.isOpened():
-                print("[VideoSourceManager] Hardware webcam not found. Switching to Demo Mode.")
-                self.mode = self.MODE_DEMO
-                self.cap = None
-            else:
-                success, test_frame = self.cap.read()
-                if not success or test_frame is None:
-                    print("[VideoSourceManager] Hardware webcam cannot read frames. Switching to Demo Mode.")
-                    self.mode = self.MODE_DEMO
-                    self.cap.release()
-                    self.cap = None
+            # Client browser streams frames directly via /api/process_frame
+            # No server-side hardware capture needed on cloud or desktop
+            self.cap = None
 
         elif self.mode == self.MODE_UPLOAD and self.upload_path and os.path.exists(self.upload_path):
             self.cap = cv2.VideoCapture(self.upload_path)
@@ -64,6 +54,10 @@ class VideoSourceManager:
         Returns:
             tuple: (frame: np.ndarray, landmarks: list or None)
         """
+        if self.mode == self.MODE_WEBCAM:
+            # When in webcam mode, background demo generation is paused
+            return None, None
+
         if self.mode == self.MODE_DEMO or self.cap is None:
             frame, landmarks = self.demo_gen.generate_frame(exercise_name)
             return frame, landmarks

@@ -1,3 +1,4 @@
+import time
 import numpy as np
 from .base import BaseExercise
 
@@ -70,7 +71,8 @@ class SquatDetector(BaseExercise):
             is_posture_flawed = True
             warning_msg = "FIX POSTURE: KNEES TOO FORWARD"
 
-        # 4. State Machine & Repetition Counting
+        # 4. State Machine & Repetition Counting with Debounce
+        curr_time = time.time()
         if knee_angle < self.SQUAT_DEPTH_KNEE_ANGLE:
             self.stage = "down"
 
@@ -80,7 +82,9 @@ class SquatDetector(BaseExercise):
         if knee_angle > self.STANDING_KNEE_ANGLE:
             if self.stage == "down":
                 if self._deepest_angle_in_rep <= self.SQUAT_DEPTH_KNEE_ANGLE + 5.0:
-                    self.reps += 1
+                    if (curr_time - self.last_rep_time) > 1.2:
+                        self.reps += 1
+                        self.last_rep_time = curr_time
                 else:
                     is_posture_flawed = True
                     warning_msg = "FIX POSTURE: SQUAT DEEPER"

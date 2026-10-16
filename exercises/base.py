@@ -53,6 +53,7 @@ class BaseExercise(ABC):
         self.warning_count = 0
         self.correct_frames = 0
         self.total_frames = 0
+        self.last_rep_time = 0.0
 
     def calculate_angle(self, a, b, c) -> float:
         """Computes joint angle using NumPy arctan2 formula."""
@@ -81,6 +82,7 @@ class BaseExercise(ABC):
         self.warning_count = 0
         self.correct_frames = 0
         self.total_frames = 0
+        self.last_rep_time = 0.0
 
     def get_accuracy_score(self) -> float:
         """Returns form accuracy percentage based on posture evaluations."""

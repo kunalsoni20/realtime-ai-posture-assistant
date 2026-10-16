@@ -61,8 +61,16 @@ def generate_frames():
     fps_smooth = 28.5
 
     while True:
-        # Retrieve frame from active video source (Webcam, Upload, or Cloud Demo Mode)
+        # Pause background generator during webcam mode to prevent ghost rep counting
+        if video_source_manager.mode == "webcam":
+            time.sleep(0.15)
+            continue
+
+        # Retrieve frame from active video source (Upload or Cloud Demo Mode)
         frame, landmarks = video_source_manager.get_frame(current_exercise_name)
+        if frame is None:
+            time.sleep(0.15)
+            continue
 
         if landmarks is not None:
             metrics = active_detector.process(landmarks, frame.shape)
@@ -146,7 +154,8 @@ def process_frame():
             return jsonify({"status": "error", "message": "Failed to decode frame"}), 400
 
         # Run MediaPipe Pose Detection
-        frame, landmarks = pose_detector.find_pose(frame, draw=True)
+        landmarks_data = []
+        frame, landmarks = pose_detector.find_pose(frame, draw=False)
         if landmarks:
             metrics = active_detector.process(landmarks, frame.shape)
             current_stats["reps"] = metrics["reps"]
@@ -154,6 +163,9 @@ def process_frame():
             current_stats["feedback"] = metrics["feedback"]
             current_stats["angle"] = metrics["angle"]
             current_stats["accuracy"] = metrics["accuracy"]
+
+            for lm in landmarks:
+                landmarks_data.append([round(float(lm.x), 3), round(float(lm.y), 3), round(float(lm.visibility), 2)])
 
         # Real-time FPS computation
         curr_time = time.time()
@@ -171,27 +183,10 @@ def process_frame():
         if session_state["is_active"]:
             session_state["fps_history"].append(fps_smooth)
 
-        # Draw HUD overlay
-        frame = HUDOverlay.render(
-            frame=frame,
-            exercise_name=active_detector.name,
-            reps=current_stats["reps"],
-            stage=current_stats["stage"],
-            feedback=current_stats["feedback"],
-            angle=current_stats["angle"],
-            fps=fps_smooth
-        )
-
-        ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
-        if not ret:
-            return jsonify({"status": "error"}), 500
-
-        processed_b64 = "data:image/jpeg;base64," + base64.b64encode(buffer).decode('utf-8')
-
         return jsonify({
             "status": "success",
-            "image": processed_b64,
-            "metrics": current_stats
+            "metrics": current_stats,
+            "landmarks": landmarks_data
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
