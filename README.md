@@ -22,6 +22,14 @@ The system evaluates kinetic joint angles in real time, counts exercise repetiti
 
 ---
 
+## 📸 Visual Telemetry & Real-Time HUD Showcase
+
+| **Bicep Curls (Elbow Flexion & Swing Alert)** | **Squats (Knee Parallel Depth & Chest Alignment)** | **Push-ups (Chest Depth & Spine Alignment)** |
+| :---: | :---: | :---: |
+| ![Bicep Curls](assets/bicep_curls_demo.jpg) | ![Squats](assets/squats_demo.jpg) | ![Push-ups](assets/pushups_demo.jpg) |
+
+---
+
 ## 🏗️ System Architecture
 
 ```
