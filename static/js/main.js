@@ -33,7 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnReset = document.getElementById('btnResetReps');
 
     const videoFeed = document.getElementById('videoFeed');
+    const webcamContainer = document.getElementById('webcamContainer');
     const webcamVideo = document.getElementById('webcamVideo');
+    const processedStreamOverlay = document.getElementById('processedStreamOverlay');
     const webcamCanvas = document.getElementById('webcamCanvas');
 
     const repCounter = document.getElementById('repCounter');
@@ -122,19 +124,28 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             if (!webcamStream) {
                 webcamStream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } },
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: "user"
+                    },
                     audio: false
                 });
                 webcamVideo.srcObject = webcamStream;
                 await webcamVideo.play();
             }
+
+            // Immediately switch display from static/demo image to active webcam video
+            if (webcamContainer) webcamContainer.style.display = 'block';
+            if (videoFeed) videoFeed.style.display = 'none';
+
             isBrowserWebcamActive = true;
             if (sourceDisplayBadge) sourceDisplayBadge.textContent = "SOURCE: LIVE WEBCAM";
-            showToast("Camera connected! Detecting posture in real time...");
+            showToast("Camera active! Detecting posture in real time...");
             requestAnimationFrame(processWebcamLoop);
         } catch (err) {
             console.error("Camera access error:", err);
-            showToast("Could not access camera. Please allow camera permissions in Brave.");
+            showToast("Camera permission was denied. Please allow camera permissions in your browser.");
         }
     }
 
@@ -144,7 +155,10 @@ document.addEventListener('DOMContentLoaded', () => {
             webcamStream.getTracks().forEach(track => track.stop());
             webcamStream = null;
         }
+        if (webcamContainer) webcamContainer.style.display = 'none';
+        if (processedStreamOverlay) processedStreamOverlay.style.display = 'none';
         if (videoFeed) {
+            videoFeed.style.display = 'block';
             videoFeed.src = "/video_feed";
         }
     }
@@ -152,7 +166,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function processWebcamLoop() {
         if (!isBrowserWebcamActive) return;
 
-        if (webcamVideo.readyState >= 2 && !isSendingFrame) {
+        // Check that video is ready and has dimensions
+        if (webcamVideo.videoWidth > 0 && !isSendingFrame) {
             isSendingFrame = true;
             const ctx = webcamCanvas.getContext('2d');
             webcamCanvas.width = 640;
@@ -173,22 +188,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     if (res.ok) {
                         const data = await res.json();
-                        if (data.image && isBrowserWebcamActive && videoFeed) {
-                            videoFeed.src = data.image;
+                        if (data.image && isBrowserWebcamActive) {
+                            if (processedStreamOverlay) {
+                                processedStreamOverlay.src = data.image;
+                                processedStreamOverlay.style.display = 'block';
+                            }
                         }
                         if (data.metrics) {
                             updateMetricsUI(data.metrics);
                         }
                     }
                 } catch (e) {
-                    // Ignore dropped frame
+                    // Ignore dropped frames
                 } finally {
                     isSendingFrame = false;
                     if (isBrowserWebcamActive) {
-                        requestAnimationFrame(processWebcamLoop);
+                        // Rate limit to ~20-25 FPS to keep network lightweight on cloud
+                        setTimeout(() => {
+                            if (isBrowserWebcamActive) requestAnimationFrame(processWebcamLoop);
+                        }, 40);
                     }
                 }
-            }, 'image/jpeg', 0.80);
+            }, 'image/jpeg', 0.70);
         } else {
             if (isBrowserWebcamActive) {
                 requestAnimationFrame(processWebcamLoop);

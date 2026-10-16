@@ -83,10 +83,15 @@
                             <span id="sourceDisplayBadge">SOURCE: WEBCAM</span>
                         </div>
 
-                        <!-- Live OpenCV Video Feed -->
+                        <!-- Live OpenCV Video Feed (Demo & Upload Mode) -->
                         <img id="videoFeed" src="{{ url_for('video_feed') }}" alt="AI Vision MJPEG Stream">
-                        <video id="webcamVideo" playsinline autoplay muted style="display: none;"></video>
-                        <canvas id="webcamCanvas" width="640" height="480" style="display: none;"></canvas>
+
+                        <!-- Direct Browser Webcam Player (Live Camera Mode) -->
+                        <div id="webcamContainer" style="display: none; position: relative; width: 100%; height: 100%; background: #000;">
+                            <video id="webcamVideo" playsinline autoplay muted style="width: 100%; height: 100%; object-fit: contain; transform: scaleX(-1);"></video>
+                            <img id="processedStreamOverlay" alt="AI Pose Overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none;">
+                            <canvas id="webcamCanvas" width="640" height="480" style="display: none;"></canvas>
+                        </div>
                     </div>
 
                     <!-- Session Action Bar -->
