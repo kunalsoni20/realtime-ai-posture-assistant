@@ -32,6 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnEnd = document.getElementById('btnEndSession');
     const btnReset = document.getElementById('btnResetReps');
 
+    const videoFeed = document.getElementById('videoFeed');
+    const webcamVideo = document.getElementById('webcamVideo');
+    const webcamCanvas = document.getElementById('webcamCanvas');
+
     const repCounter = document.getElementById('repCounter');
     const stageBadge = document.getElementById('stageBadge');
     const postureFeedbackBox = document.getElementById('postureFeedbackBox');
@@ -56,6 +60,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let sessionSeconds = 0;
     let sessionTimerInterval = null;
 
+    // Browser Webcam Streaming State
+    let isBrowserWebcamActive = false;
+    let webcamStream = null;
+    let isSendingFrame = false;
+
     // Toast helper
     function showToast(message) {
         if (!toast) return;
@@ -64,7 +73,130 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => toast.classList.remove('show'), 3500);
     }
 
-    // 1. Exercise Selection Handler
+    // UI Updater Helper
+    function updateMetricsUI(data) {
+        if (!data) return;
+        if (repCounter) repCounter.textContent = data.reps ?? 0;
+        if (stageBadge) {
+            stageBadge.textContent = (data.stage ?? '--').toUpperCase();
+        }
+
+        if (postureFeedbackText && postureFeedbackBox) {
+            const feedback = data.feedback ?? 'READY';
+            postureFeedbackText.textContent = feedback;
+
+            const isWarning = feedback.includes('FIX') || feedback.includes('SAGGING') || feedback.includes('SWING');
+            if (isWarning) {
+                postureFeedbackBox.className = 'feedback-box status-warning';
+                if (feedbackIcon) feedbackIcon.textContent = '⚠';
+            } else {
+                postureFeedbackBox.className = 'feedback-box status-good';
+                if (feedbackIcon) feedbackIcon.textContent = '✓';
+            }
+        }
+
+        if (accuracyValue && accuracyProgressBar) {
+            const acc = data.accuracy ?? 100.0;
+            accuracyValue.textContent = `${acc}%`;
+            accuracyProgressBar.style.width = `${acc}%`;
+        }
+
+        if (angleText && angleGaugeFill) {
+            const angle = data.angle ?? 0.0;
+            angleText.textContent = `${angle.toFixed(1)}°`;
+            const pct = Math.min(Math.max((angle / 180.0) * 100, 0), 100);
+            angleGaugeFill.style.width = `${pct}%`;
+        }
+
+        if (fpsDisplay && data.fps) {
+            fpsDisplay.textContent = `FPS: ${data.fps.toFixed(1)}`;
+        }
+
+        if (sourceDisplayBadge && data.source_mode) {
+            sourceDisplayBadge.textContent = `SOURCE: ${data.source_mode.toUpperCase()}`;
+        }
+    }
+
+    // 1. Browser Webcam Stream Logic
+    async function startBrowserWebcam() {
+        try {
+            if (!webcamStream) {
+                webcamStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } },
+                    audio: false
+                });
+                webcamVideo.srcObject = webcamStream;
+                await webcamVideo.play();
+            }
+            isBrowserWebcamActive = true;
+            if (sourceDisplayBadge) sourceDisplayBadge.textContent = "SOURCE: LIVE WEBCAM";
+            showToast("Camera connected! Detecting posture in real time...");
+            requestAnimationFrame(processWebcamLoop);
+        } catch (err) {
+            console.error("Camera access error:", err);
+            showToast("Could not access camera. Please allow camera permissions in Brave.");
+        }
+    }
+
+    function stopBrowserWebcam() {
+        isBrowserWebcamActive = false;
+        if (webcamStream) {
+            webcamStream.getTracks().forEach(track => track.stop());
+            webcamStream = null;
+        }
+        if (videoFeed) {
+            videoFeed.src = "/video_feed";
+        }
+    }
+
+    function processWebcamLoop() {
+        if (!isBrowserWebcamActive) return;
+
+        if (webcamVideo.readyState >= 2 && !isSendingFrame) {
+            isSendingFrame = true;
+            const ctx = webcamCanvas.getContext('2d');
+            webcamCanvas.width = 640;
+            webcamCanvas.height = 480;
+            ctx.drawImage(webcamVideo, 0, 0, 640, 480);
+
+            webcamCanvas.toBlob(async (blob) => {
+                if (!blob) {
+                    isSendingFrame = false;
+                    if (isBrowserWebcamActive) requestAnimationFrame(processWebcamLoop);
+                    return;
+                }
+                try {
+                    const res = await fetch('/api/process_frame', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'image/jpeg' },
+                        body: blob
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.image && isBrowserWebcamActive && videoFeed) {
+                            videoFeed.src = data.image;
+                        }
+                        if (data.metrics) {
+                            updateMetricsUI(data.metrics);
+                        }
+                    }
+                } catch (e) {
+                    // Ignore dropped frame
+                } finally {
+                    isSendingFrame = false;
+                    if (isBrowserWebcamActive) {
+                        requestAnimationFrame(processWebcamLoop);
+                    }
+                }
+            }, 'image/jpeg', 0.80);
+        } else {
+            if (isBrowserWebcamActive) {
+                requestAnimationFrame(processWebcamLoop);
+            }
+        }
+    }
+
+    // 2. Exercise Selection Handler
     exerciseBtns.forEach(btn => {
         btn.addEventListener('click', async () => {
             const exerciseKey = btn.dataset.exercise;
@@ -95,36 +227,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 2. Video Source Selector Handler
+    // 3. Video Source Selector Handler
     sourceBtns.forEach(btn => {
         btn.addEventListener('click', async () => {
             const sourceMode = btn.dataset.source;
             sourceBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
-            try {
-                const res = await fetch('/api/set_source', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ mode: sourceMode })
-                });
-                const data = await res.json();
-                if (sourceDisplayBadge) {
-                    sourceDisplayBadge.textContent = `SOURCE: ${data.mode.toUpperCase()}`;
+            if (sourceMode === 'webcam') {
+                await startBrowserWebcam();
+            } else {
+                stopBrowserWebcam();
+                try {
+                    const res = await fetch('/api/set_source', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mode: sourceMode })
+                    });
+                    const data = await res.json();
+                    if (sourceDisplayBadge) {
+                        sourceDisplayBadge.textContent = `SOURCE: ${data.mode.toUpperCase()}`;
+                    }
+                    showToast(`Video source switched to ${data.mode.toUpperCase()}`);
+                } catch (err) {
+                    console.error('Failed to switch video source:', err);
                 }
-                showToast(`Video source switched to ${data.mode.toUpperCase()}`);
-            } catch (err) {
-                console.error('Failed to switch video source:', err);
             }
         });
     });
 
-    // 3. Custom Video Upload Handler
+    // 4. Custom Video Upload Handler
     if (videoUploadInput) {
         videoUploadInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
+            stopBrowserWebcam();
             const formData = new FormData();
             formData.append('video', file);
 
@@ -151,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. Session Controls (Start, End, Reset)
+    // 5. Session Controls (Start, End, Reset)
     if (btnStart) {
         btnStart.addEventListener('click', async () => {
             try {
@@ -207,59 +345,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 5. Real-Time Telemetry Sync (Polled every 250ms for responsive UI feedback)
+    // 6. Polling sync for Demo Mode & Background updates (only runs when browser webcam is inactive)
     setInterval(async () => {
+        if (isBrowserWebcamActive) return; // Browser webcam updates directly via frame processing loop
         try {
             const res = await fetch('/api/stats');
             if (!res.ok) return;
             const data = await res.json();
-
-            // Reps & Stage
-            if (repCounter) repCounter.textContent = data.reps ?? 0;
-            if (stageBadge) {
-                stageBadge.textContent = (data.stage ?? '--').toUpperCase();
-            }
-
-            // Posture Feedback
-            if (postureFeedbackText && postureFeedbackBox) {
-                const feedback = data.feedback ?? 'READY';
-                postureFeedbackText.textContent = feedback;
-
-                const isWarning = feedback.includes('FIX') || feedback.includes('SAGGING') || feedback.includes('SWING');
-                if (isWarning) {
-                    postureFeedbackBox.className = 'feedback-box status-warning';
-                    if (feedbackIcon) feedbackIcon.textContent = '⚠';
-                } else {
-                    postureFeedbackBox.className = 'feedback-box status-good';
-                    if (feedbackIcon) feedbackIcon.textContent = '✓';
-                }
-            }
-
-            // Accuracy Score
-            if (accuracyValue && accuracyProgressBar) {
-                const acc = data.accuracy ?? 100.0;
-                accuracyValue.textContent = `${acc}%`;
-                accuracyProgressBar.style.width = `${acc}%`;
-            }
-
-            // Joint Angle & Gauge
-            if (angleText && angleGaugeFill) {
-                const angle = data.angle ?? 0.0;
-                angleText.textContent = `${angle.toFixed(1)}°`;
-                const pct = Math.min(Math.max((angle / 180.0) * 100, 0), 100);
-                angleGaugeFill.style.width = `${pct}%`;
-            }
-
-            // FPS
-            if (fpsDisplay && data.fps) {
-                fpsDisplay.textContent = `FPS: ${data.fps.toFixed(1)}`;
-            }
-
-            // Source Badge Sync
-            if (sourceDisplayBadge && data.source_mode) {
-                sourceDisplayBadge.textContent = `SOURCE: ${data.source_mode.toUpperCase()}`;
-            }
-
+            updateMetricsUI(data);
         } catch (err) {
             // Silently swallow transient network errors
         }

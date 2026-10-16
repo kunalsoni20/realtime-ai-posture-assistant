@@ -26,26 +26,34 @@ class BicepCurlDetector(BaseExercise):
                             landmarks[self.RIGHT_ELBOW].visibility,
                             landmarks[self.RIGHT_WRIST].visibility)
 
-        if left_arm_vis >= right_arm_vis:
-            shoulder_idx = self.LEFT_SHOULDER
-            elbow_idx = self.LEFT_ELBOW
-            wrist_idx = self.LEFT_WRIST
-            hip_idx = self.LEFT_HIP
+        l_shoulder = self.get_landmark_coord(landmarks, self.LEFT_SHOULDER)
+        l_elbow = self.get_landmark_coord(landmarks, self.LEFT_ELBOW)
+        l_wrist = self.get_landmark_coord(landmarks, self.LEFT_WRIST)
+        l_hip = self.get_landmark_coord(landmarks, self.LEFT_HIP)
+
+        r_shoulder = self.get_landmark_coord(landmarks, self.RIGHT_SHOULDER)
+        r_elbow = self.get_landmark_coord(landmarks, self.RIGHT_ELBOW)
+        r_wrist = self.get_landmark_coord(landmarks, self.RIGHT_WRIST)
+        r_hip = self.get_landmark_coord(landmarks, self.RIGHT_HIP)
+
+        l_angle = self.calculate_angle(l_shoulder, l_elbow, l_wrist)
+        r_angle = self.calculate_angle(r_shoulder, r_elbow, r_wrist)
+
+        # Track whichever arm has better visibility, or whichever is actively flexing
+        if abs(left_arm_vis - right_arm_vis) > 0.15:
+            use_left = (left_arm_vis > right_arm_vis)
+        else:
+            use_left = (l_angle <= r_angle)
+
+        if use_left:
+            shoulder, elbow, wrist, hip = l_shoulder, l_elbow, l_wrist, l_hip
+            elbow_angle = l_angle
             arm_side = "Left"
         else:
-            shoulder_idx = self.RIGHT_SHOULDER
-            elbow_idx = self.RIGHT_ELBOW
-            wrist_idx = self.RIGHT_WRIST
-            hip_idx = self.RIGHT_HIP
+            shoulder, elbow, wrist, hip = r_shoulder, r_elbow, r_wrist, r_hip
+            elbow_angle = r_angle
             arm_side = "Right"
 
-        shoulder = self.get_landmark_coord(landmarks, shoulder_idx)
-        elbow = self.get_landmark_coord(landmarks, elbow_idx)
-        wrist = self.get_landmark_coord(landmarks, wrist_idx)
-        hip = self.get_landmark_coord(landmarks, hip_idx)
-
-        # 1. Compute Elbow Angle using NumPy geometric angle calculation
-        elbow_angle = self.calculate_angle(shoulder, elbow, wrist)
         self.current_angle = round(elbow_angle, 1)
 
         # 2. Form Issue Checks: Elbow Swinging and Torso Cheating

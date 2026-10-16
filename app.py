@@ -1,6 +1,8 @@
 import os
 import time
+import base64
 import cv2
+import numpy as np
 from flask import Flask, render_template, Response, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 from pose_detector import PoseDetector
@@ -121,6 +123,78 @@ def video_feed():
     """Video streaming route for OpenCV MJPEG feed."""
     return Response(generate_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+@app.route('/api/process_frame', methods=['POST'])
+def process_frame():
+    """Processes browser client-side webcam frame through MediaPipe and returns annotated image and metrics."""
+    global current_stats, active_detector, session_state
+
+    try:
+        if request.content_type and 'application/json' in request.content_type:
+            data = request.get_json() or {}
+            img_b64 = data.get('image', '')
+            if ',' in img_b64:
+                img_b64 = img_b64.split(',', 1)[1]
+            img_bytes = base64.b64decode(img_b64)
+        else:
+            img_bytes = request.data
+
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if frame is None:
+            return jsonify({"status": "error", "message": "Failed to decode frame"}), 400
+
+        # Run MediaPipe Pose Detection
+        frame, landmarks = pose_detector.find_pose(frame, draw=True)
+        if landmarks:
+            metrics = active_detector.process(landmarks, frame.shape)
+            current_stats["reps"] = metrics["reps"]
+            current_stats["stage"] = metrics["stage"]
+            current_stats["feedback"] = metrics["feedback"]
+            current_stats["angle"] = metrics["angle"]
+            current_stats["accuracy"] = metrics["accuracy"]
+
+        # Real-time FPS computation
+        curr_time = time.time()
+        fps_smooth = current_stats.get("fps", 28.0)
+        if not hasattr(process_frame, "prev_time"):
+            process_frame.prev_time = curr_time
+        dt = curr_time - process_frame.prev_time
+        if dt > 0:
+            instant_fps = 1.0 / dt
+            fps_smooth = 0.85 * fps_smooth + 0.15 * instant_fps
+        process_frame.prev_time = curr_time
+        current_stats["fps"] = round(fps_smooth, 1)
+        current_stats["source_mode"] = "webcam"
+
+        if session_state["is_active"]:
+            session_state["fps_history"].append(fps_smooth)
+
+        # Draw HUD overlay
+        frame = HUDOverlay.render(
+            frame=frame,
+            exercise_name=active_detector.name,
+            reps=current_stats["reps"],
+            stage=current_stats["stage"],
+            feedback=current_stats["feedback"],
+            angle=current_stats["angle"],
+            fps=fps_smooth
+        )
+
+        ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+        if not ret:
+            return jsonify({"status": "error"}), 500
+
+        processed_b64 = "data:image/jpeg;base64," + base64.b64encode(buffer).decode('utf-8')
+
+        return jsonify({
+            "status": "success",
+            "image": processed_b64,
+            "metrics": current_stats
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route('/api/select_exercise', methods=['POST'])
