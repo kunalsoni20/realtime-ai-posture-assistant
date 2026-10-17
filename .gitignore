@@ -52,3 +52,4 @@ uploads/
 *.avi
 *.mov
 !demo_sample.mp4
+*.db
