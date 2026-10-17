@@ -9,8 +9,7 @@
 [![NumPy](https://img.shields.io/badge/NumPy-Vector%20Trigonometry-013243?logo=numpy&logoColor=white)](https://numpy.org/)
 [![Pandas](https://img.shields.io/badge/Pandas-Session%20Analytics-150458?logo=pandas&logoColor=white)](https://pandas.pydata.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/kunalsoni20/realtime-ai-posture-assistant)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/kunalsoni20/realtime-ai-posture-assistant)
 
 > **Authored by Kunal Soni**  
 > *AI Software Engineer & Computer Vision Developer*

@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import streamlit as st
+from PIL import Image
 
 import database as db
 from processor import ExerciseVideoProcessor
@@ -405,19 +406,24 @@ with tab_arena:
                 acc=processor.detector.get_accuracy_score(),
                 feedback=processor.detector.feedback
             )
-            # Render a crisp initial preview frame so it's never an empty void
-            init_frame, _ = processor.demo_gen.generate_frame(processor.current_key)
-            init_annotated = HUDOverlay.render(
-                frame=init_frame,
-                exercise_name=processor.detector.name,
-                reps=processor.detector.reps,
-                stage=processor.detector.stage,
-                feedback=processor.detector.feedback,
-                angle=processor.detector.current_angle,
-                fps=28.5
-            )
-            init_rgb = cv2.cvtColor(init_annotated, cv2.COLOR_BGR2RGB)
-            video_placeholder.image(init_rgb, channels="RGB", use_container_width=True)
+            # Render a crisp initial preview frame from high-res asset
+            asset_filename = f"{processor.current_key}_demo.jpg"
+            asset_path = os.path.join(os.path.dirname(__file__), "assets", asset_filename)
+            if os.path.exists(asset_path):
+                video_placeholder.image(asset_path, caption=f"🎯 {processor.detector.name} Form & Kinematics Benchmark", use_container_width=True)
+            else:
+                init_frame, _ = processor.demo_gen.generate_frame(processor.current_key)
+                init_annotated = HUDOverlay.render(
+                    frame=init_frame,
+                    exercise_name=processor.detector.name,
+                    reps=processor.detector.reps,
+                    stage=processor.detector.stage,
+                    feedback=processor.detector.feedback,
+                    angle=processor.detector.current_angle,
+                    fps=28.5
+                )
+                pil_init = Image.fromarray(cv2.cvtColor(init_annotated, cv2.COLOR_BGR2RGB))
+                video_placeholder.image(pil_init, use_container_width=True)
 
     # Active Workout Video Execution Step
     if st.session_state["is_running"]:
@@ -438,9 +444,9 @@ with tab_arena:
             dummy = np.zeros((480, 640, 3), dtype=np.uint8)
             annotated_bgr, metrics = processor.process_frame(dummy, is_demo=True)
 
-        # Render current frame into video placeholder
+        # Render current frame into video placeholder using PIL Image
         annotated_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
-        video_placeholder.image(annotated_rgb, channels="RGB", use_container_width=True)
+        video_placeholder.image(Image.fromarray(annotated_rgb), use_container_width=True)
 
         # Update telemetry HUD cards live
         update_telemetry_ui(
