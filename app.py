@@ -16,8 +16,15 @@ app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Exercise detectors dictionary
+# Exercise detectors dictionary for live user workouts (Webcam & Uploads)
 exercise_detectors = {
+    "bicep_curls": BicepCurlDetector(),
+    "squats": SquatDetector(),
+    "pushups": PushupDetector()
+}
+
+# Separate demo detectors so simulated demo reps NEVER bleed into user workout
+demo_detectors = {
     "bicep_curls": BicepCurlDetector(),
     "squats": SquatDetector(),
     "pushups": PushupDetector()
@@ -26,9 +33,9 @@ exercise_detectors = {
 current_exercise_name = "bicep_curls"
 active_detector = exercise_detectors[current_exercise_name]
 
-# Global pose detector & smart video source manager
+# Global pose detector & smart video source manager (default to demo so landing page is never blank)
 pose_detector = PoseDetector()
-video_source_manager = VideoSourceManager(pose_detector, default_mode="webcam")
+video_source_manager = VideoSourceManager(pose_detector, default_mode="demo")
 
 # Workout session timing state
 session_state = {
@@ -55,7 +62,7 @@ session_logger.init_logger()
 
 def generate_frames():
     """Generates real-time MJPEG stream with MediaPipe pose processing and 25+ FPS HUD overlay."""
-    global current_stats, active_detector, session_state, video_source_manager
+    global current_stats, active_detector, demo_detectors, session_state, video_source_manager
     
     prev_time = time.time()
     fps_smooth = 28.5
@@ -72,13 +79,21 @@ def generate_frames():
             time.sleep(0.15)
             continue
 
+        if video_source_manager.mode == "demo":
+            detector = demo_detectors[current_exercise_name]
+        else:
+            detector = active_detector
+
+        metrics = {"reps": 0, "stage": "up", "feedback": "READY", "angle": 0.0, "accuracy": 100.0}
         if landmarks is not None:
-            metrics = active_detector.process(landmarks, frame.shape)
-            current_stats["reps"] = metrics["reps"]
-            current_stats["stage"] = metrics["stage"]
-            current_stats["feedback"] = metrics["feedback"]
-            current_stats["angle"] = metrics["angle"]
-            current_stats["accuracy"] = metrics["accuracy"]
+            metrics = detector.process(landmarks, frame.shape)
+            # Only update current_stats if source is not webcam
+            if video_source_manager.mode != "webcam":
+                current_stats["reps"] = metrics["reps"]
+                current_stats["stage"] = metrics["stage"]
+                current_stats["feedback"] = metrics["feedback"]
+                current_stats["angle"] = metrics["angle"]
+                current_stats["accuracy"] = metrics["accuracy"]
 
         # Real-time FPS calculation & EMA smoothing
         curr_time = time.time()
@@ -94,11 +109,11 @@ def generate_frames():
         # Draw real-time 25+ FPS HUD Overlay
         frame = HUDOverlay.render(
             frame=frame,
-            exercise_name=active_detector.name,
-            reps=current_stats["reps"],
-            stage=current_stats["stage"],
-            feedback=current_stats["feedback"],
-            angle=current_stats["angle"],
+            exercise_name=detector.name,
+            reps=metrics["reps"],
+            stage=metrics["stage"],
+            feedback=metrics["feedback"],
+            angle=metrics["angle"],
             fps=fps_smooth
         )
 
@@ -226,6 +241,15 @@ def set_source():
     mode = data.get('mode', 'webcam')
     actual_mode = video_source_manager.set_source(mode)
     current_stats["source_mode"] = actual_mode
+
+    if actual_mode == "webcam":
+        active_detector.reset()
+        current_stats["reps"] = 0
+        current_stats["stage"] = "up"
+        current_stats["feedback"] = "READY"
+        current_stats["angle"] = 0.0
+        current_stats["accuracy"] = 100.0
+
     return jsonify({"status": "success", "mode": actual_mode})
 
 

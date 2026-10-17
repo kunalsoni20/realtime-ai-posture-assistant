@@ -13,7 +13,7 @@ class VideoSourceManager:
     MODE_DEMO = "demo"
     MODE_UPLOAD = "upload"
 
-    def __init__(self, pose_detector, default_mode: str = "webcam"):
+    def __init__(self, pose_detector, default_mode: str = "demo"):
         self.pose_detector = pose_detector
         self.mode = default_mode
         self.cap = None

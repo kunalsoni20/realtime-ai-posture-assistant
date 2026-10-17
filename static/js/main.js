@@ -180,51 +180,102 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Browser Webcam Stream Logic
     async function startBrowserWebcam() {
+        showToast("Starting live camera...");
+
+        // 1. Immediately switch layout & cut background MJPEG stream so browser stops receiving demo frames
+        if (webcamContainer) webcamContainer.style.display = 'block';
+        if (videoFeed) {
+            videoFeed.style.display = 'none';
+            videoFeed.src = ""; // Cut background MJPEG stream
+        }
+        if (sourceDisplayBadge) sourceDisplayBadge.textContent = "SOURCE: LIVE WEBCAM";
+        if (repCounter) repCounter.textContent = '0';
+
+        // Notify server to mute background demo loop and reset workout reps
+        try {
+            await fetch('/api/set_source', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode: 'webcam' })
+            });
+            await fetch('/api/session/reset', { method: 'POST' });
+        } catch (e) {
+            console.warn("Could not notify server:", e);
+        }
+
+        // 2. Request user media with robust resolution fallback
         try {
             if (!webcamStream) {
-                webcamStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 640 },
-                        height: { ideal: 480 },
-                        facingMode: "user"
-                    },
-                    audio: false
-                });
-                webcamVideo.srcObject = webcamStream;
-                await webcamVideo.play();
-            }
+                webcamVideo.muted = true;
+                webcamVideo.playsInline = true;
+                webcamVideo.setAttribute('playsinline', '');
+                webcamVideo.setAttribute('muted', '');
 
-            // Switch display from static/demo MJPEG image to native 60 FPS webcam video
-            if (webcamContainer) webcamContainer.style.display = 'block';
-            if (videoFeed) {
-                videoFeed.style.display = 'none';
-                videoFeed.src = ""; // Cut background MJPEG stream to save bandwidth and prevent ghost reps!
-            }
+                let stream = null;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            facingMode: "user"
+                        },
+                        audio: false
+                    });
+                } catch (firstErr) {
+                    console.warn("Ideal resolution failed, trying fallback constraints:", firstErr);
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                }
 
-            // Inform server to mute background demo loops
-            try {
-                await fetch('/api/set_source', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ mode: 'webcam' })
+                webcamStream = stream;
+                webcamVideo.srcObject = stream;
+
+                // Wait for video element to have valid frame data
+                await new Promise((resolve) => {
+                    if (webcamVideo.readyState >= 2) {
+                        resolve();
+                    } else {
+                        webcamVideo.onloadeddata = () => resolve();
+                        setTimeout(resolve, 1500);
+                    }
                 });
-            } catch (e) {}
+
+                try {
+                    await webcamVideo.play();
+                } catch (playErr) {
+                    console.warn("Video play error, forcing muted play:", playErr);
+                    webcamVideo.muted = true;
+                    await webcamVideo.play();
+                }
+            }
 
             isBrowserWebcamActive = true;
-            if (sourceDisplayBadge) sourceDisplayBadge.textContent = "SOURCE: LIVE WEBCAM";
-            showToast("Camera active! Detecting posture in real time...");
+            showToast("Camera active! Detecting posture in real time.");
             requestAnimationFrame(processWebcamLoop);
         } catch (err) {
-            console.error("Camera access error:", err);
-            showToast("Camera permission was denied. Please allow camera permissions in your browser.");
+            console.error("Camera access failed:", err);
+            // Revert back to demo mode on failure
+            stopBrowserWebcam();
+            const demoBtn = document.getElementById('btnSourceDemo');
+            const camBtn = document.getElementById('btnSourceWebcam');
+            if (camBtn) camBtn.classList.remove('active');
+            if (demoBtn) demoBtn.classList.add('active');
+            const errorMsg = err.name === 'NotAllowedError'
+                ? 'Camera permission was denied. Please allow camera access in browser site settings.'
+                : (err.message || 'Camera could not be opened.');
+            showToast(errorMsg);
         }
     }
 
     function stopBrowserWebcam() {
         isBrowserWebcamActive = false;
         if (webcamStream) {
-            webcamStream.getTracks().forEach(track => track.stop());
+            webcamStream.getTracks().forEach(track => {
+                try { track.stop(); } catch (e) {}
+            });
             webcamStream = null;
+        }
+        if (webcamVideo) {
+            webcamVideo.srcObject = null;
         }
         if (webcamContainer) webcamContainer.style.display = 'none';
         if (webcamOverlayCanvas) {
@@ -235,6 +286,16 @@ document.addEventListener('DOMContentLoaded', () => {
             videoFeed.style.display = 'block';
             videoFeed.src = "/video_feed";
         }
+        if (sourceDisplayBadge) sourceDisplayBadge.textContent = "SOURCE: DEMO MODE";
+
+        // Notify server that demo mode is active
+        try {
+            fetch('/api/set_source', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode: 'demo' })
+            });
+        } catch (e) {}
     }
 
     function processWebcamLoop() {
