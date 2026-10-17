@@ -1,7 +1,7 @@
 # Real-Time AI Workout & Posture Correction Assistant
 
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/deploy?repository=kunalsoni20/realtime-ai-posture-assistant&branch=main&mainModule=streamlit_app.py)
 [![GitHub Pages](https://img.shields.io/badge/Landing%20Page-GitHub%20Pages-2ea44f?logo=githubpages&logoColor=white)](https://kunalsoni20.github.io/realtime-ai-posture-assistant/)
 [![Flask](https://img.shields.io/badge/Flask-3.0%2B-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![OpenCV](https://img.shields.io/badge/OpenCV-Headless%20CV2-5C3EE8?logo=opencv&logoColor=white)](https://opencv.org/)
