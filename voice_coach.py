@@ -1,6 +1,8 @@
 import os
 from io import BytesIO
 import random
+from typing import Optional, Dict, Any, List
+
 try:
     from gtts import gTTS
 except ImportError:
