@@ -9,6 +9,7 @@ import streamlit as st
 import database as db
 from processor import ExerciseVideoProcessor
 from voice_coach import CoachLLM, TextToSpeech
+from hud_overlay import HUDOverlay
 
 # 1. Page Configuration & Modern Dark UI Theme Setup
 st.set_page_config(
