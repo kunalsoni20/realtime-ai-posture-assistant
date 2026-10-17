@@ -198,20 +198,48 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Launch Application
+### 3. Launch Applications
+
+#### Option A: Streamlit AI Coach Dashboard (Streamlit Cloud Ready)
+```bash
+streamlit run streamlit_app.py
+```
+Opens the interactive coach dashboard at `http://localhost:8501` featuring:
+- Live multi-exercise tracking with audio cues (gTTS)
+- SQLite persistent workout logging & history
+- Biomechanics visualizer with angle formulas
+- AI CoachLLM workout briefings & form feedback
+
+#### Option B: Flask High-Performance Video App (Render Ready)
 ```bash
 python app.py
 ```
-Open your browser and navigate to:
-```
-http://localhost:5000
+Open your browser and navigate to `http://localhost:5000`.
+
+#### Option C: High-Converting Landing Page (Netlify Ready)
+Open `landing_page/index.html` directly in your browser or serve it:
+```bash
+cd landing_page && python -m http.server 3000
 ```
 
 ---
 
 ## 🌐 Cloud Deployment Guide
 
-### Deploying to Render
+### Deploying to Streamlit Community Cloud
+1. Fork or push this repository to GitHub (`kunalsoni20/realtime-ai-posture-assistant`).
+2. Go to [share.streamlit.io](https://share.streamlit.io/) and click **New app**.
+3. Select your repository, branch (`main`), and set **Main file path** to `streamlit_app.py`.
+4. (Optional) In Advanced settings, add `OPENAI_API_KEY` if you want AI-generated LLM workout briefings.
+5. Click **Deploy!**
+
+### Deploying the Landing Page to Netlify
+1. Log in to [Netlify](https://app.netlify.com/).
+2. Drag and drop the `landing_page/` folder directly into Netlify's "Sites" dashboard, OR
+3. Connect your GitHub repository and set **Base directory** to `landing_page` and **Publish directory** to `.`.
+4. Your landing page is live in seconds with HTTPS!
+
+### Deploying to Render (Flask Web Service)
 1. Create a new **Web Service** on [Render.com](https://render.com/).
 2. Connect your GitHub repository.
 3. Select **Python 3** environment.

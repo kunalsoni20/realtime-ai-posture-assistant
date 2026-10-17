@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Gym Coach & Real-Time Posture Assistant</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <header class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <span class="brand-icon">🏋️</span>
+                <span class="brand-text">AI Gym Coach</span>
+            </div>
+            <nav class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#exercises">Exercises</a>
+                <a href="#architecture">Architecture</a>
+                <a href="#tech-stack">Tech Stack</a>
+            </nav>
+            <div class="nav-cta">
+                <a href="https://realtime-ai-posture-assistant.onrender.com/" target="_blank" class="btn btn-secondary">Live Flask App</a>
+                <a href="https://share.streamlit.io/" target="_blank" class="btn btn-primary" id="btnLaunchStreamlit">Launch Streamlit App 🚀</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container hero-content">
+            <div class="hero-badge">
+                <span class="pulse-dot"></span>
+                <span>Real-Time Computer Vision & AI Voice Trainer</span>
+            </div>
+            <h1 class="hero-title">
+                Master Your Form with <br>
+                <span class="gradient-text">Real-Time AI Biomechanics</span>
+            </h1>
+            <p class="hero-subtitle">
+                An intelligent workout assistant that tracks skeletal kinematics using MediaPipe, calculates exact joint angles with NumPy vector trigonometry, counts repetitions, and provides instant audio feedback via CoachLLM.
+            </p>
+            <div class="hero-actions">
+                <a href="#exercises" class="btn btn-primary btn-large">
+                    Explore Exercises ⚡
+                </a>
+                <a href="https://github.com/kunalsoni20/realtime-ai-posture-assistant" target="_blank" class="btn btn-outline btn-large">
+                    GitHub Codebase ⭐
+                </a>
+            </div>
+
+            <!-- Hero Live Telemetry Preview Card -->
+            <div class="hero-preview-wrapper">
+                <div class="hero-preview-card">
+                    <div class="preview-header">
+                        <div class="preview-badge"><span class="pulse-dot"></span> Live Kinematic HUD</div>
+                        <div class="preview-fps">FPS: 28.5 (Zero-Lag)</div>
+                    </div>
+                    <div class="preview-metrics-grid">
+                        <div class="metric-box">
+                            <span class="metric-label">Completed Reps</span>
+                            <span class="metric-number text-emerald" id="heroRepCounter">12</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="metric-label">Joint Angle</span>
+                            <span class="metric-number text-cyan" id="heroAngleDisplay">92.4°</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="metric-label">Form Accuracy</span>
+                            <span class="metric-number text-emerald">96.8%</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="metric-label">AI Coach Voice</span>
+                            <span class="metric-status status-good">✓ GOOD DEPTH</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Core Features Section -->
+    <section class="features-section" id="features">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">ENGINEERING HIGHLIGHTS</span>
+                <h2 class="section-title">Built with Precision Computer Vision & AI</h2>
+                <p class="section-subtitle">A full-stack fitness intelligence pipeline integrating pose estimation, vector geometry, LLMs, and SQLite analytics.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📐</div>
+                    <h3>Vector Trigonometry</h3>
+                    <p>Calculates 2D joint angles dynamically with NumPy <code>arctan2</code> across 33 MediaPipe pose landmarks, filtering out occlusion and noise.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>25+ FPS HUD Overlay</h3>
+                    <p>High-performance OpenCV telemetry rendering showing live angles, rep counters, stage transitions (UP/DOWN), and posture warnings.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎙️</div>
+                    <h3>CoachLLM & Audio TTS</h3>
+                    <p>In-memory text-to-speech synthesis (gTTS) providing immediate auditory form cues (e.g., "Keep chest up!", "Hit 90 degrees!").</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>SQLite Session Analytics</h3>
+                    <p>Automatically records workout repetitions, accuracy scores, durations, and calories burned for persistent lifetime tracking.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🚀</div>
+                    <h3>Cloud Simulation Fallback</h3>
+                    <p>Synthetic workout generator allowing complete testing on cloud platforms (Streamlit Cloud, Render) without physical webcam limits.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Debounced Rep Logic</h3>
+                    <p>Smart state machines preventing ghost repetition spikes with 1.2s debouncing and deepest joint angle verification.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Multi-Exercise Tracking Guide -->
+    <section class="exercises-section" id="exercises">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">BIOMECHANICAL STANDARDS</span>
+                <h2 class="section-title">Supported Exercises & Angle Thresholds</h2>
+            </div>
+            <div class="exercise-cards-grid">
+                <!-- Squats -->
+                <div class="exercise-card">
+                    <div class="exercise-header">
+                        <span class="ex-icon">🦵</span>
+                        <h3>Squats</h3>
+                    </div>
+                    <ul class="ex-specs">
+                        <li><strong>Tracked Joints:</strong> Hip &rarr; Knee &rarr; Ankle</li>
+                        <li><strong>Standing Angle:</strong> &gt; 160.0°</li>
+                        <li><strong>Parallel Depth:</strong> &lt; 95.0°</li>
+                        <li><strong>Flaw Detection:</strong> Shallow depth, chest collapse, knees forward</li>
+                    </ul>
+                </div>
+                <!-- Push-ups -->
+                <div class="exercise-card">
+                    <div class="exercise-header">
+                        <span class="ex-icon">🤸</span>
+                        <h3>Push-ups</h3>
+                    </div>
+                    <ul class="ex-specs">
+                        <li><strong>Tracked Joints:</strong> Shoulder &rarr; Elbow &rarr; Wrist & Plank</li>
+                        <li><strong>Plank Extended:</strong> &gt; 155.0°</li>
+                        <li><strong>Bottom Flexed:</strong> &lt; 90.0°</li>
+                        <li><strong>Flaw Detection:</strong> Sagging hips (&lt;155°), high hips (&gt;195°), partial ROM</li>
+                    </ul>
+                </div>
+                <!-- Bicep Curls -->
+                <div class="exercise-card">
+                    <div class="exercise-header">
+                        <span class="ex-icon">💪</span>
+                        <h3>Bicep Curls</h3>
+                    </div>
+                    <ul class="ex-specs">
+                        <li><strong>Tracked Joints:</strong> Shoulder &rarr; Elbow &rarr; Wrist</li>
+                        <li><strong>Arm Extended:</strong> &gt; 155.0°</li>
+                        <li><strong>Arm Curled:</strong> &lt; 45.0°</li>
+                        <li><strong>Flaw Detection:</strong> Elbow swinging flare, upper torso cheat momentum</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture & Deployment Section -->
+    <section class="architecture-section" id="architecture">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">MODULAR ARCHITECTURE</span>
+                <h2 class="section-title">End-to-End System Pipeline</h2>
+            </div>
+            <div class="pipeline-flow">
+                <div class="flow-step">
+                    <div class="step-num">01</div>
+                    <h4>Video Ingestion</h4>
+                    <p>Direct Webcam, Uploaded MP4, or Synthetic Cloud Simulator</p>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="step-num">02</div>
+                    <h4>Pose Estimation</h4>
+                    <p>MediaPipe 33 Normalized Keypoints Detection</p>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="step-num">03</div>
+                    <h4>Trigonometry Engine</h4>
+                    <p>NumPy arctan2 Joint Flexion & Alignment Math</p>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="step-num">04</div>
+                    <h4>CoachLLM & Audio</h4>
+                    <p>In-memory gTTS Cues & Post-Workout AI Advice</p>
+                </div>
+                <div class="flow-arrow">&rarr;</div>
+                <div class="flow-step">
+                    <div class="step-num">05</div>
+                    <h4>SQLite Storage</h4>
+                    <p>Historical Logging, Calorie Counting & Charts</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tech Stack -->
+    <section class="tech-section" id="tech-stack">
+        <div class="container text-center">
+            <span class="section-tag">TECHNOLOGIES</span>
+            <h2 class="section-title">Built with Industry-Standard Tools</h2>
+            <div class="tech-badges">
+                <span class="tech-badge">Python 3.12</span>
+                <span class="tech-badge">Streamlit</span>
+                <span class="tech-badge">Flask</span>
+                <span class="tech-badge">MediaPipe</span>
+                <span class="tech-badge">OpenCV</span>
+                <span class="tech-badge">NumPy</span>
+                <span class="tech-badge">Pandas</span>
+                <span class="tech-badge">SQLite3</span>
+                <span class="tech-badge">gTTS</span>
+                <span class="tech-badge">Netlify</span>
+                <span class="tech-badge">Render</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container footer-content">
+            <div class="footer-left">
+                <p><strong>Real-Time AI Gym Coach & Posture Assistant</strong></p>
+                <p class="text-muted">Developed by <strong>Kunal Soni</strong> • Open-source project</p>
+            </div>
+            <div class="footer-right">
+                <a href="https://github.com/kunalsoni20/realtime-ai-posture-assistant" target="_blank" class="footer-link">GitHub Repository</a>
+                <a href="https://realtime-ai-posture-assistant.onrender.com/" target="_blank" class="footer-link">Render Live Web App</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
