@@ -1,8 +1,13 @@
 import os
 from io import BytesIO
 import random
-from typing import Optional
-from gTTS import gTTS
+try:
+    from gtts import gTTS
+except ImportError:
+    try:
+        from gTTS import gTTS
+    except ImportError:
+        gTTS = None
 
 
 class TextToSpeech:
@@ -19,7 +24,7 @@ class TextToSpeech:
         Returns:
             io.BytesIO buffer containing MP3 audio, or None if generation failed.
         """
-        if not text or not text.strip():
+        if gTTS is None or not text or not text.strip():
             return None
 
         clean_text = text.strip()
